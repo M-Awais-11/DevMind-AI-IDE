@@ -1,0 +1,232 @@
+<div class="h-screen w-screen flex flex-col bg-[#1f1a1a] text-[#FCF2E5] overflow-hidden font-sans">
+  <!-- Top Application Bar -->
+  <header class="h-10 bg-[#524646] border-b border-[#A8A492]/25 flex items-center justify-between px-3 text-xs select-none shadow-md">
+    <!-- Brand & Workspace -->
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2 font-bold tracking-tight text-[#EC5B38]">
+        <app-icon name="code" size="w-4 h-4"></app-icon>
+        <span class="text-[#FCF2E5] font-bold text-sm tracking-wide">DevMind</span>
+      </div>
+      <span class="text-[#A8A492]/40">|</span>
+      
+      <!-- Current Workspace / Open Folder Button -->
+      <button 
+        (click)="showOpenProject.set(true)"
+        class="flex items-center space-x-1.5 text-[#FCF2E5] bg-[#352d2d] hover:bg-[#272020] px-2.5 py-1 rounded border border-[#A8A492]/30 transition-colors shadow-sm group"
+        title="Click to Open or Switch Project Folder"
+      >
+        <app-icon name="folder-open" size="w-3.5 h-3.5" customClass="text-[#EC5B38] group-hover:scale-105 transition-transform"></app-icon>
+        <span class="font-mono text-[11px] font-medium truncate max-w-[220px]">{{ projectInfo()?.folder_name || 'workspace' }}</span>
+        @if (projectInfo()?.framework && projectInfo()?.framework !== 'none') {
+          <span class="text-[9px] text-[#2196F3] font-bold uppercase bg-[#2196F3]/10 px-1 py-0.2 rounded">
+            {{ projectInfo()?.framework }}
+          </span>
+        }
+        <span class="text-[10px] text-[#A8A492] ml-1">Change</span>
+      </button>
+    </div>
+
+    <!-- Center Model / AI Status -->
+    <div class="flex items-center space-x-2">
+      @if (settings()?.openrouter_api_key_set) {
+        <div class="flex items-center space-x-2 bg-[#352d2d] border border-[#A8A492]/30 px-3 py-1 rounded-full text-[#FCF2E5] text-[11px] shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-[#2196F3] animate-pulse"></span>
+          <span class="font-mono text-[#A8A492]">OpenRouter</span>
+          <span class="text-[#A8A492]/50">•</span>
+          <span class="text-[#EC5B38] font-mono text-[11px] font-medium">{{ settings()?.openrouter_model?.split(':')[0] }}</span>
+        </div>
+      } @else {
+        <button 
+          (click)="showSettings.set(true)"
+          class="flex items-center space-x-1.5 bg-[#92003A]/40 border border-[#92003A] px-3 py-1 rounded-full text-[#FCF2E5] text-[11px] hover:bg-[#92003A]/60 transition-colors"
+        >
+          <span class="w-2 h-2 rounded-full bg-[#EC5B38]"></span>
+          <span>Set OpenRouter API Key</span>
+        </button>
+      }
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center space-x-2">
+      <!-- Open Folder Button -->
+      <button 
+        (click)="showOpenProject.set(true)"
+        class="bg-[#352d2d] hover:bg-[#272020] text-[#FCF2E5] border border-[#A8A492]/30 px-2.5 py-1 rounded text-xs flex items-center space-x-1.5 transition-colors shadow-sm"
+        title="Open Project Folder"
+      >
+        <app-icon name="folder-open" size="w-3.5 h-3.5" customClass="text-[#A8A492]"></app-icon>
+        <span class="hidden sm:inline">Open Folder</span>
+      </button>
+
+      <!-- Run Active File Button -->
+      @if (fileService.activeTab()) {
+        <button 
+          (click)="handleRunFile()"
+          class="bg-[#2196F3] hover:bg-[#42a5f5] text-[#FCF2E5] px-3 py-1 rounded text-xs flex items-center space-x-1.5 transition-colors shadow font-medium"
+          title="Run Active File"
+        >
+          <app-icon name="play" size="w-3 h-3"></app-icon>
+          <span>Run</span>
+        </button>
+      }
+
+      <!-- Live Preview Button -->
+      <button 
+        (click)="activeBottomTab.set('preview'); isBottomPanelCollapsed.set(false)"
+        class="bg-[#EC5B38] hover:bg-[#f07355] text-[#FCF2E5] px-3 py-1 rounded text-xs flex items-center space-x-1.5 transition-colors shadow font-medium"
+        title="Toggle Live Preview"
+      >
+        <app-icon name="play" size="w-3 h-3"></app-icon>
+        <span>Live Preview</span>
+      </button>
+
+      <!-- Settings Button -->
+      <button 
+        (click)="showSettings.set(true)"
+        class="text-[#A8A492] hover:text-[#FCF2E5] p-1.5 rounded hover:bg-[#352d2d] transition-colors"
+        title="Settings"
+      >
+        <app-icon name="settings" size="w-4 h-4"></app-icon>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Split Layout -->
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Left Sidebar: File Explorer -->
+    <aside class="w-64 bg-[#352d2d] border-r border-[#A8A492]/20 flex flex-col select-none">
+      <!-- Explorer Header -->
+      <div class="px-3 py-2.5 border-b border-[#A8A492]/20 flex items-center justify-between text-xs text-[#A8A492] font-semibold tracking-wider uppercase bg-[#524646]">
+        <span>Explorer</span>
+        <div class="flex items-center space-x-1 text-[#A8A492]">
+          <button (click)="showOpenProject.set(true)" class="hover:text-[#FCF2E5] p-1 rounded hover:bg-[#352d2d]" title="Open Folder">
+            <app-icon name="folder-open" size="w-3 h-3"></app-icon>
+          </button>
+          <button (click)="createNewFileRoot()" class="hover:text-[#FCF2E5] p-1 rounded hover:bg-[#352d2d]" title="New File at Root">
+            <app-icon name="plus" size="w-3 h-3"></app-icon>
+          </button>
+          <button (click)="fileService.refreshTree()" class="hover:text-[#FCF2E5] p-1 rounded hover:bg-[#352d2d]" title="Refresh Tree">
+            <app-icon name="refresh" size="w-3 h-3"></app-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- File Tree Content -->
+      <div class="flex-1 overflow-y-auto p-1.5 text-xs">
+        @if (fileService.isLoadingTree()) {
+          <div class="p-4 text-[#A8A492] flex items-center space-x-2">
+            <app-icon name="spinner" size="w-3.5 h-3.5" customClass="text-[#EC5B38]"></app-icon>
+            <span>Loading workspace files...</span>
+          </div>
+        } @else if (fileService.fileTree()) {
+          <app-file-tree-item [node]="fileService.fileTree()!" [depth]="0"></app-file-tree-item>
+        } @else {
+          <div class="p-4 text-[#A8A492]">No files in workspace.</div>
+        }
+      </div>
+    </aside>
+
+    <!-- Center Workspace: Editor & Bottom Panel -->
+    <main class="flex-1 flex flex-col overflow-hidden bg-[#272020]">
+      <!-- Editor Tabs -->
+      <app-editor-tabs (runFile)="handleRunFile($event)"></app-editor-tabs>
+
+      <!-- Monaco Editor -->
+      <div class="flex-1 relative overflow-hidden">
+        <app-monaco-editor></app-monaco-editor>
+      </div>
+
+      <!-- Bottom Panel (Terminal / Git / Live Preview) -->
+      <div 
+        class="border-t border-[#A8A492]/20 flex flex-col bg-[#272020] transition-all duration-200"
+        [style.height]="isBottomPanelCollapsed() ? '32px' : '260px'"
+      >
+        <!-- Panel Tabs Bar -->
+        <div class="h-8 bg-[#352d2d] border-b border-[#A8A492]/20 px-2 flex items-center justify-between text-xs select-none">
+          <div class="flex items-center space-x-1">
+            <button 
+              (click)="activeBottomTab.set('preview'); isBottomPanelCollapsed.set(false)"
+              class="px-3 py-1 rounded transition-colors flex items-center space-x-1.5"
+              [class.bg-[#272020]]="activeBottomTab() === 'preview' && !isBottomPanelCollapsed()"
+              [class.text-[#EC5B38]]="activeBottomTab() === 'preview' && !isBottomPanelCollapsed()"
+              [class.font-semibold]="activeBottomTab() === 'preview' && !isBottomPanelCollapsed()"
+              [class.text-[#A8A492]]="activeBottomTab() !== 'preview' || isBottomPanelCollapsed()"
+            >
+              <app-icon name="play" size="w-3 h-3"></app-icon>
+              <span>Live Preview</span>
+            </button>
+            <button 
+              (click)="activeBottomTab.set('terminal'); isBottomPanelCollapsed.set(false)"
+              class="px-3 py-1 rounded transition-colors flex items-center space-x-1.5"
+              [class.bg-[#272020]]="activeBottomTab() === 'terminal' && !isBottomPanelCollapsed()"
+              [class.text-[#EC5B38]]="activeBottomTab() === 'terminal' && !isBottomPanelCollapsed()"
+              [class.font-semibold]="activeBottomTab() === 'terminal' && !isBottomPanelCollapsed()"
+              [class.text-[#A8A492]]="activeBottomTab() !== 'terminal' || isBottomPanelCollapsed()"
+            >
+              <app-icon name="terminal" size="w-3 h-3"></app-icon>
+              <span>Terminal</span>
+            </button>
+            <button 
+              (click)="activeBottomTab.set('git'); isBottomPanelCollapsed.set(false)"
+              class="px-3 py-1 rounded transition-colors flex items-center space-x-1.5"
+              [class.bg-[#272020]]="activeBottomTab() === 'git' && !isBottomPanelCollapsed()"
+              [class.text-[#EC5B38]]="activeBottomTab() === 'git' && !isBottomPanelCollapsed()"
+              [class.font-semibold]="activeBottomTab() === 'git' && !isBottomPanelCollapsed()"
+              [class.text-[#A8A492]]="activeBottomTab() !== 'git' || isBottomPanelCollapsed()"
+            >
+              <app-icon name="git-branch" size="w-3 h-3"></app-icon>
+              <span>Git</span>
+            </button>
+          </div>
+
+          <!-- Collapse / Expand Button -->
+          <button 
+            (click)="isBottomPanelCollapsed.update(v => !v)"
+            class="text-[#A8A492] hover:text-[#FCF2E5] p-1 rounded"
+            title="{{ isBottomPanelCollapsed() ? 'Expand' : 'Collapse' }}"
+          >
+            <app-icon [name]="isBottomPanelCollapsed() ? 'chevron-down' : 'chevron-down'" size="w-3.5 h-3.5"></app-icon>
+          </button>
+        </div>
+
+        <!-- Panel Active Content -->
+        @if (!isBottomPanelCollapsed()) {
+          <div class="flex-1 overflow-hidden">
+            @if (activeBottomTab() === 'preview') {
+              <app-live-preview></app-live-preview>
+            } @else if (activeBottomTab() === 'terminal') {
+              <app-terminal-panel></app-terminal-panel>
+            } @else if (activeBottomTab() === 'git') {
+              <app-git-panel></app-git-panel>
+            }
+          </div>
+        }
+      </div>
+    </main>
+
+    <!-- Right Sidebar: DevMind AI Assistant Drawer (Scrollable & Responsive) -->
+    <aside class="w-80 sm:w-96 bg-[#272020] flex flex-col min-h-0 overflow-hidden select-none">
+      <app-ai-chat class="h-full flex flex-col min-h-0 overflow-hidden"></app-ai-chat>
+    </aside>
+  </div>
+
+  <!-- Settings Dialog Modal -->
+  @if (showSettings()) {
+    <app-settings-dialog (close)="showSettings.set(false); refreshSettings()"></app-settings-dialog>
+  }
+
+  <!-- Open Project Folder Modal -->
+  @if (showOpenProject()) {
+    <app-open-project-dialog 
+      (close)="showOpenProject.set(false)" 
+      (projectOpened)="onProjectOpened()"
+    ></app-open-project-dialog>
+  }
+
+  <!-- Dependency Install Prompt Toast -->
+  <app-install-prompt-dialog
+    [install]="terminalService.pendingInstall()"
+    (onInstall)="onInstallConfirmed()"
+    (onDismiss)="terminalService.dismissInstall()"
+  ></app-install-prompt-dialog>
+</div>
