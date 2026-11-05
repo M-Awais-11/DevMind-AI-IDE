@@ -83,7 +83,6 @@ IDE/
 ├── run_ide.py               # One-click launcher
 └── README.md
 ```
-
 ---
 
 ## 🧪 Running Automated Tests
